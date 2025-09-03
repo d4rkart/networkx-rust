@@ -1,0 +1,522 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>NetworkX vs networkx-rs Benchmark Comparison</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; background-color: #f9f9f9; line-height: 1.6; }
+            h1 { color: #2c3e50; text-align: center; margin-top: 30px; }
+            h2 { color: #3498db; margin-top: 25px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+            h3 { color: #2c3e50; margin-top: 20px; }
+            p { margin: 12px 0; color: #333; }
+            table { border-collapse: collapse; width: 100%; margin: 20px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+            th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #3498db; color: white; position: sticky; top: 0; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            tr:hover { background-color: #e5e5e5; }
+            .speedup { text-align: center; }
+            .faster { color: #e74c3c; font-weight: bold; }
+            .slower { color: #3498db; font-weight: bold; }
+            .equal { color: #2c3e50; }
+            .image-container { margin: 30px 0; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+            img { max-width: 100%; height: auto; border: 1px solid #ddd; display: block; margin: 10px auto; }
+            .summary { background-color: #e8f4f8; padding: 15px; border-left: 5px solid #3498db; margin: 20px 0; border-radius: 0 5px 5px 0; }
+            .stat-card { background-color: white; border-radius: 8px; padding: 15px; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-block; width: 280px; text-align: center; }
+            .stat-value { font-size: 24px; font-weight: bold; margin: 10px 0; color: #3498db; }
+            .stat-label { font-size: 14px; color: #7f8c8d; }
+            .stats-container { display: flex; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+            .chart-description { color: #555; font-style: italic; text-align: center; margin: 5px 0 20px 0; max-width: 800px; margin-left: auto; margin-right: auto; }
+            .caption { font-size: 14px; color: #666; text-align: center; margin-top: 10px; font-style: italic; }
+            .conclusion { margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 5px; border-left: 5px solid #2c3e50; }
+            footer { margin-top: 30px; text-align: center; color: #7f8c8d; padding: 10px; border-top: 1px solid #ddd; }
+            .tooltip { position: relative; display: inline-block; cursor: help; border-bottom: 1px dotted #3498db; }
+            .tooltip .tooltiptext { visibility: hidden; width: 200px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -100px; opacity: 0; transition: opacity 0.3s; }
+            .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+            .tabs { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; margin-top: 20px; border-radius: 5px 5px 0 0; }
+            .tab { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; font-size: 17px; }
+            .tab:hover { background-color: #ddd; }
+            .tab.active { background-color: #3498db; color: white; }
+            .tabcontent { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; border-radius: 0 0 5px 5px; }
+            .visible { display: block; }
+        </style>
+        <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tab");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+        
+        // Show the first tab by default
+        window.onload = function() {
+            document.getElementsByClassName("tab")[0].click();
+        };
+        </script>
+    </head>
+    <body>
+        <h1>NetworkX vs networkx-rs Benchmark Comparison</h1>
+        
+        <div class="summary">
+            <p>This report compares the performance of the Python NetworkX library with the Rust networkx-rs implementation
+            across various graph operations and graph sizes. The benchmarks measure execution time for key graph algorithms
+            and operations to quantify performance differences between the implementations.</p>
+        </div>
+        
+        <h2>Performance Overview</h2>
+        
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-label">Geometric Mean Speedup</div>
+                <div class="stat-value">9.03x</div>
+                <div class="stat-label">Rust over Python</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">Maximum Speedup</div>
+                <div class="stat-value">197.26x</div>
+                <div class="stat-label">Best case for Rust</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">Operations Faster in Rust</div>
+                <div class="stat-value">17 / 17</div>
+                <div class="stat-label">Operations</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">Median Speedup</div>
+                <div class="stat-value">6.39x</div>
+                <div class="stat-label">Middle of distribution</div>
+            </div>
+        </div>
+        
+        <h2>Performance by Operation Type</h2>
+        <table>
+            <tr>
+                <th>Operation Type</th>
+                <th>Operations</th>
+                <th>Average Speedup</th>
+                <th>Geometric Mean</th>
+                <th>Range</th>
+            </tr>
+    
+            <tr>
+                <td>Graph Creation</td>
+                <td>12</td>
+                <td>6.79x</td>
+                <td>6.46x</td>
+                <td>4.10x - 10.83x</td>
+            </tr>
+        
+            <tr>
+                <td>Path Finding</td>
+                <td>1</td>
+                <td>1.18x</td>
+                <td>1.18x</td>
+                <td>1.18x - 1.18x</td>
+            </tr>
+        
+            <tr>
+                <td>Graph Traversal</td>
+                <td>2</td>
+                <td>10.41x</td>
+                <td>9.12x</td>
+                <td>5.39x - 15.43x</td>
+            </tr>
+        
+            <tr>
+                <td>Graph Modification</td>
+                <td>2</td>
+                <td>186.01x</td>
+                <td>185.67x</td>
+                <td>174.77x - 197.26x</td>
+            </tr>
+        
+        </table>
+        
+        <h2>Detailed Performance Comparison</h2>
+        
+        <div class="tabs">
+            <button class="tab" onclick="openTab(event, 'ByOperation')">By Operation Type</button>
+            <button class="tab" onclick="openTab(event, 'BySpeedup')">Sorted by Speedup</button>
+        </div>
+        
+        <div id="ByOperation" class="tabcontent">
+            <h3>Results Grouped by Operation Type</h3>
+            <table>
+                <tr>
+                    <th>Benchmark</th>
+                    <th>Description</th>
+                    <th>Python Time (ms)</th>
+                    <th>Rust Time (ms)</th>
+                    <th>Speedup</th>
+                </tr>
+    
+                <tr>
+                    <td>add_100_edges</td>
+                    <td>Graph modification operation on a graph with 100.0 nodes</td>
+                    <td>132.12</td>
+                    <td>0.76</td>
+                    <td class="speedup faster">174.77x</td>
+                </tr>
+        
+                <tr>
+                    <td>add_100_nodes</td>
+                    <td>Graph modification operation on a graph with 100.0 nodes</td>
+                    <td>131.09</td>
+                    <td>0.66</td>
+                    <td class="speedup faster">197.26x</td>
+                </tr>
+        
+                <tr>
+                    <td>bfs</td>
+                    <td>Performing breadth-first search on a graph with nan nodes</td>
+                    <td>25.91</td>
+                    <td>1.68</td>
+                    <td class="speedup faster">15.43x</td>
+                </tr>
+        
+                <tr>
+                    <td>dfs</td>
+                    <td>Performing depth-first search on a graph with nan nodes</td>
+                    <td>11.54</td>
+                    <td>2.14</td>
+                    <td class="speedup faster">5.39x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_100_500</td>
+                    <td>Creating an undirected graph with 100.0 nodes and 500.0 edges</td>
+                    <td>4.21</td>
+                    <td>0.45</td>
+                    <td class="speedup faster">9.31x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_500_2500</td>
+                    <td>Creating an undirected graph with 500.0 nodes and 2,500.0 edges</td>
+                    <td>11.87</td>
+                    <td>2.44</td>
+                    <td class="speedup faster">4.87x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_1000_5000</td>
+                    <td>Creating an undirected graph with 1,000.0 nodes and 5,000.0 edges</td>
+                    <td>20.43</td>
+                    <td>4.98</td>
+                    <td class="speedup faster">4.10x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_5000_25000</td>
+                    <td>Creating an undirected graph with 5,000.0 nodes and 25,000.0 edges</td>
+                    <td>108.65</td>
+                    <td>18.98</td>
+                    <td class="speedup faster">5.72x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_10000_50000</td>
+                    <td>Creating an undirected graph with 10,000.0 nodes and 50,000.0 edges</td>
+                    <td>276.77</td>
+                    <td>32.56</td>
+                    <td class="speedup faster">8.50x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_20000_100000</td>
+                    <td>Creating an undirected graph with 20,000.0 nodes and 100,000.0 edges</td>
+                    <td>659.99</td>
+                    <td>60.96</td>
+                    <td class="speedup faster">10.83x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_100_500</td>
+                    <td>Creating an undirected graph with 100.0 nodes and 500.0 edges</td>
+                    <td>2.97</td>
+                    <td>0.46</td>
+                    <td class="speedup faster">6.39x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_500_2500</td>
+                    <td>Creating an undirected graph with 500.0 nodes and 2,500.0 edges</td>
+                    <td>11.97</td>
+                    <td>2.29</td>
+                    <td class="speedup faster">5.22x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_1000_5000</td>
+                    <td>Creating an undirected graph with 1,000.0 nodes and 5,000.0 edges</td>
+                    <td>21.84</td>
+                    <td>4.77</td>
+                    <td class="speedup faster">4.58x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_5000_25000</td>
+                    <td>Creating an undirected graph with 5,000.0 nodes and 25,000.0 edges</td>
+                    <td>107.79</td>
+                    <td>23.01</td>
+                    <td class="speedup faster">4.68x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_10000_50000</td>
+                    <td>Creating an undirected graph with 10,000.0 nodes and 50,000.0 edges</td>
+                    <td>261.06</td>
+                    <td>30.69</td>
+                    <td class="speedup faster">8.51x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_20000_100000</td>
+                    <td>Creating an undirected graph with 20,000.0 nodes and 100,000.0 edges</td>
+                    <td>531.25</td>
+                    <td>60.51</td>
+                    <td class="speedup faster">8.78x</td>
+                </tr>
+        
+                <tr>
+                    <td>shortest_path</td>
+                    <td>Finding shortest path between two nodes in a graph with nan nodes</td>
+                    <td>2.40</td>
+                    <td>2.04</td>
+                    <td class="speedup faster">1.18x</td>
+                </tr>
+        
+            </table>
+        </div>
+        
+        <div id="BySpeedup" class="tabcontent">
+            <h3>Results Ranked by Performance Difference</h3>
+            <table>
+                <tr>
+                    <th>Benchmark</th>
+                    <th>Description</th>
+                    <th>Python Time (ms)</th>
+                    <th>Rust Time (ms)</th>
+                    <th>Speedup</th>
+                </tr>
+    
+                <tr>
+                    <td>add_100_nodes</td>
+                    <td>Graph modification operation on a graph with 100.0 nodes</td>
+                    <td>131.09</td>
+                    <td>0.66</td>
+                    <td class="speedup faster">197.26x</td>
+                </tr>
+        
+                <tr>
+                    <td>add_100_edges</td>
+                    <td>Graph modification operation on a graph with 100.0 nodes</td>
+                    <td>132.12</td>
+                    <td>0.76</td>
+                    <td class="speedup faster">174.77x</td>
+                </tr>
+        
+                <tr>
+                    <td>bfs</td>
+                    <td>Performing breadth-first search on a graph with nan nodes</td>
+                    <td>25.91</td>
+                    <td>1.68</td>
+                    <td class="speedup faster">15.43x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_20000_100000</td>
+                    <td>Creating an undirected graph with 20,000.0 nodes and 100,000.0 edges</td>
+                    <td>659.99</td>
+                    <td>60.96</td>
+                    <td class="speedup faster">10.83x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_100_500</td>
+                    <td>Creating an undirected graph with 100.0 nodes and 500.0 edges</td>
+                    <td>4.21</td>
+                    <td>0.45</td>
+                    <td class="speedup faster">9.31x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_20000_100000</td>
+                    <td>Creating an undirected graph with 20,000.0 nodes and 100,000.0 edges</td>
+                    <td>531.25</td>
+                    <td>60.51</td>
+                    <td class="speedup faster">8.78x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_10000_50000</td>
+                    <td>Creating an undirected graph with 10,000.0 nodes and 50,000.0 edges</td>
+                    <td>261.06</td>
+                    <td>30.69</td>
+                    <td class="speedup faster">8.51x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_10000_50000</td>
+                    <td>Creating an undirected graph with 10,000.0 nodes and 50,000.0 edges</td>
+                    <td>276.77</td>
+                    <td>32.56</td>
+                    <td class="speedup faster">8.50x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_100_500</td>
+                    <td>Creating an undirected graph with 100.0 nodes and 500.0 edges</td>
+                    <td>2.97</td>
+                    <td>0.46</td>
+                    <td class="speedup faster">6.39x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_5000_25000</td>
+                    <td>Creating an undirected graph with 5,000.0 nodes and 25,000.0 edges</td>
+                    <td>108.65</td>
+                    <td>18.98</td>
+                    <td class="speedup faster">5.72x</td>
+                </tr>
+        
+                <tr>
+                    <td>dfs</td>
+                    <td>Performing depth-first search on a graph with nan nodes</td>
+                    <td>11.54</td>
+                    <td>2.14</td>
+                    <td class="speedup faster">5.39x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_500_2500</td>
+                    <td>Creating an undirected graph with 500.0 nodes and 2,500.0 edges</td>
+                    <td>11.97</td>
+                    <td>2.29</td>
+                    <td class="speedup faster">5.22x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_500_2500</td>
+                    <td>Creating an undirected graph with 500.0 nodes and 2,500.0 edges</td>
+                    <td>11.87</td>
+                    <td>2.44</td>
+                    <td class="speedup faster">4.87x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_5000_25000</td>
+                    <td>Creating an undirected graph with 5,000.0 nodes and 25,000.0 edges</td>
+                    <td>107.79</td>
+                    <td>23.01</td>
+                    <td class="speedup faster">4.68x</td>
+                </tr>
+        
+                <tr>
+                    <td>graph_creation_1000_5000</td>
+                    <td>Creating an undirected graph with 1,000.0 nodes and 5,000.0 edges</td>
+                    <td>21.84</td>
+                    <td>4.77</td>
+                    <td class="speedup faster">4.58x</td>
+                </tr>
+        
+                <tr>
+                    <td>digraph_creation_1000_5000</td>
+                    <td>Creating an undirected graph with 1,000.0 nodes and 5,000.0 edges</td>
+                    <td>20.43</td>
+                    <td>4.98</td>
+                    <td class="speedup faster">4.10x</td>
+                </tr>
+        
+                <tr>
+                    <td>shortest_path</td>
+                    <td>Finding shortest path between two nodes in a graph with nan nodes</td>
+                    <td>2.40</td>
+                    <td>2.04</td>
+                    <td class="speedup faster">1.18x</td>
+                </tr>
+        
+            </table>
+        </div>
+        
+        <h2>Visualization and Analysis</h2>
+    
+        <div class="image-container">
+            <h3>Graph Creation Performance</h3>
+            <p class="chart-description">This chart compares the time taken to create graphs of various sizes in both Python and Rust. Lower bars indicate better performance.</p>
+            <img src="creation_comparison.png" alt="Graph Creation Performance">
+        </div>
+        
+        <div class="image-container">
+            <h3>Creation Speedup by Graph Size</h3>
+            <p class="chart-description">This scatter plot shows how the speedup factor changes with graph size. The bubble size represents the number of edges in each graph.</p>
+            <img src="creation_speedup_by_size.png" alt="Creation Speedup by Graph Size">
+        </div>
+        
+        <div class="image-container">
+            <h3>Graph Operation Performance</h3>
+            <p class="chart-description">This chart compares the execution time of various graph operations. Lower bars indicate better performance.</p>
+            <img src="operation_comparison.png" alt="Graph Operation Performance">
+        </div>
+        
+        <div class="image-container">
+            <h3>Graph Operation Performance (Log Scale)</h3>
+            <p class="chart-description">This chart uses a logarithmic scale to better visualize performance differences across operations with varying execution times.</p>
+            <img src="operation_comparison_log.png" alt="Graph Operation Performance (Log Scale)">
+        </div>
+        
+        <div class="image-container">
+            <h3>Operation-specific Speedup</h3>
+            <p class="chart-description">This chart shows the speedup factor for each operation. Higher bars indicate Rust is faster; lower bars indicate Python is faster.</p>
+            <img src="operation_speedup.png" alt="Operation-specific Speedup">
+        </div>
+        
+        <div class="image-container">
+            <h3>Graph Modification Performance</h3>
+            <p class="chart-description">This chart compares the time taken to add nodes or edges to existing graphs. The performance difference highlights memory allocation and data structure efficiency.</p>
+            <img src="addition_comparison.png" alt="Graph Modification Performance">
+        </div>
+        
+        <div class="image-container">
+            <h3>Overall Performance Comparison</h3>
+            <p class="chart-description">This chart shows the speedup factor for all benchmarked operations. Bars to the right of the center line indicate Rust is faster; bars to the left indicate Python is faster.</p>
+            <img src="speedup.png" alt="Overall Performance Comparison">
+        </div>
+        
+        <div class="image-container">
+            <h3>Performance Scaling with Graph Size</h3>
+            <p class="chart-description">This chart shows how Rust's performance advantage scales with graph size and complexity. The trend line indicates how the speedup changes with increasing graph size.</p>
+            <img src="size_vs_speedup.png" alt="Performance Scaling with Graph Size">
+        </div>
+        
+        <div class="conclusion">
+            <h2>Summary and Conclusions</h2>
+            <p>Based on the benchmarks performed, the Rust implementation (networkx-rs) shows an average speedup of 9.03x 
+            over the Python implementation (NetworkX) across all tested operations. Out of 17 operations benchmarked, 
+            Rust was faster in 17 cases.</p>
+            
+            <p>Key observations:</p>
+            <ul>
+                <li>The performance advantage of Rust tends to increase with graph size, with a maximum speedup of 197.26x.</li>
+                <li>Graph creation operations show consistent speedup across all graph sizes.</li>
+                <li>The most significant performance differences are observed in operations that are computationally intensive or involve heavy memory operations.</li>
+                <li>For very small graphs, the performance difference is less pronounced, but still favors Rust in most cases.</li>
+            </ul>
+        </div>
+        
+        <footer>
+            <p>Benchmark report generated for networkx-rs vs NetworkX performance comparison.</p>
+            <p>Rust implementation: networkx-rs | Python implementation: NetworkX</p>
+        </footer>
+    </body>
+    </html>
+    

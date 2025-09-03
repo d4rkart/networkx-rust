@@ -1,0 +1,11 @@
+[package]
+name = "networkx-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+slotmap = "1.0.7"
+rayon = "1.8.0"
+rand = "0.8.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

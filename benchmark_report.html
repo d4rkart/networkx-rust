@@ -1,0 +1,135 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>NetworkX vs networkx-rs Benchmark Comparison</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { color: #2c3e50; }
+            h2 { color: #3498db; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #3498db; color: white; }
+            tr:hover { background-color: #f5f5f5; }
+            .speedup { font-weight: bold; }
+            .faster { color: green; }
+            .slower { color: red; }
+            .image-container { margin: 20px 0; }
+            img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+        </style>
+    </head>
+    <body>
+        <h1>NetworkX vs networkx-rs Benchmark Comparison</h1>
+        
+        <h2>Performance Summary</h2>
+        <table>
+            <tr>
+                <th>Benchmark</th>
+                <th>Python Time (ms)</th>
+                <th>Rust Time (ms)</th>
+                <th>Speedup (Python/Rust)</th>
+            </tr>
+    
+            <tr>
+                <td>add_100_nodes</td>
+                <td>6.57</td>
+                <td>0.14</td>
+                <td class="speedup faster">45.42x</td>
+            </tr>
+        
+            <tr>
+                <td>add_100_edges</td>
+                <td>6.54</td>
+                <td>0.31</td>
+                <td class="speedup faster">21.16x</td>
+            </tr>
+        
+            <tr>
+                <td>digraph_creation_100_500</td>
+                <td>4.36</td>
+                <td>0.47</td>
+                <td class="speedup faster">9.31x</td>
+            </tr>
+        
+            <tr>
+                <td>graph_creation_100_500</td>
+                <td>4.4</td>
+                <td>0.5</td>
+                <td class="speedup faster">8.86x</td>
+            </tr>
+        
+            <tr>
+                <td>bfs</td>
+                <td>2.09</td>
+                <td>0.41</td>
+                <td class="speedup faster">5.11x</td>
+            </tr>
+        
+            <tr>
+                <td>digraph_creation_500_2500</td>
+                <td>11.81</td>
+                <td>2.38</td>
+                <td class="speedup faster">4.96x</td>
+            </tr>
+        
+            <tr>
+                <td>graph_creation_500_2500</td>
+                <td>11.9</td>
+                <td>2.46</td>
+                <td class="speedup faster">4.84x</td>
+            </tr>
+        
+            <tr>
+                <td>digraph_creation_1000_5000</td>
+                <td>23.09</td>
+                <td>5.08</td>
+                <td class="speedup faster">4.55x</td>
+            </tr>
+        
+            <tr>
+                <td>graph_creation_1000_5000</td>
+                <td>20.99</td>
+                <td>4.82</td>
+                <td class="speedup faster">4.36x</td>
+            </tr>
+        
+            <tr>
+                <td>dfs</td>
+                <td>1.33</td>
+                <td>0.51</td>
+                <td class="speedup faster">2.59x</td>
+            </tr>
+        
+            <tr>
+                <td>shortest_path</td>
+                <td>0.59</td>
+                <td>0.69</td>
+                <td class="speedup slower">0.85x</td>
+            </tr>
+        
+        </table>
+        
+        <h2>Charts</h2>
+        
+        <div class="image-container">
+            <h3>Graph Creation Time Comparison</h3>
+            <img src="charts/creation_comparison.png" alt="Creation Time Comparison">
+        </div>
+        
+        <div class="image-container">
+            <h3>Graph Operation Time Comparison</h3>
+            <img src="charts/operation_comparison.png" alt="Operation Time Comparison">
+        </div>
+        
+        <div class="image-container">
+            <h3>Node/Edge Addition Time Comparison</h3>
+            <img src="charts/addition_comparison.png" alt="Addition Time Comparison">
+        </div>
+        
+        <div class="image-container">
+            <h3>Speedup (Rust vs Python)</h3>
+            <img src="charts/speedup.png" alt="Speedup">
+        </div>
+    </body>
+    </html>
+    
