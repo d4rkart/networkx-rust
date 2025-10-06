@@ -360,8 +360,36 @@ fn test_spring_layout_weight_edge_cases() {
     let iterations = 50;
     let threshold = 1e-4;
 
-    // Should handle zero weight gracefully
-    let positions = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, Some(""));
+    // Test with no weight parameter - should use default weight of 1.0
+    let positions = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, None);
+
+    assert_eq!(positions.len(), 2);
+    for (_, pos) in &positions {
+        assert!(pos[0].is_finite());
+        assert!(pos[1].is_finite());
+    }
+}
+
+#[test]
+fn test_spring_layout_zero_weight_extraction() {
+    use serde_json::json;
+
+    let mut graph = Graph::<String, String>::new(false);
+    let n1 = graph.add_node("node1".to_string());
+    let n2 = graph.add_node("node2".to_string());
+
+    // Add edge with JSON data containing zero weight
+    let zero_weight_data = json!({"weight": 0.0, "cost": 5.0});
+    graph.add_edge(n1, n2, zero_weight_data.to_string());
+
+    let k = Some(1.0);
+    let scale = 1.0;
+    let center: Position = [0.0, 0.0];
+    let iterations = 50;
+    let threshold = 1e-4;
+
+    // Test zero weight extraction - should use the zero weight from JSON
+    let positions = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, Some("weight"));
 
     assert_eq!(positions.len(), 2);
     for (_, pos) in &positions {
