@@ -222,6 +222,32 @@ fn test_kamada_kawai_layout() {
 
     // Check that all nodes have positions
     assert_eq!(positions.len(), 4);
+}
+
+#[test]
+fn test_kamada_kawai_layout_with_weights() {
+    let mut graph = Graph::<String, String>::new(false);
+    let n1 = graph.add_node("node1".to_string());
+    let n2 = graph.add_node("node2".to_string());
+    let n3 = graph.add_node("node3".to_string());
+    let n4 = graph.add_node("node4".to_string());
+
+    // Add edges with JSON weight data
+    graph.add_edge(n1, n2, r#"{"weight": 2.0}"#.to_string());
+    graph.add_edge(n2, n3, r#"{"weight": 3.0}"#.to_string());
+    graph.add_edge(n3, n4, r#"{"weight": 1.5}"#.to_string());
+    graph.add_edge(n4, n1, r#"{"weight": 2.5}"#.to_string());
+
+    let scale = 1.0;
+    let center: Position = [0.0, 0.0];
+    let epsilon = 1e-5;
+    let max_iterations = 100;
+
+    // Test kamada_kawai_layout with weight parameter
+    let positions = kamada_kawai_layout(&graph, None, None, Some("weight"), scale, center, epsilon, max_iterations);
+
+    // Check that all nodes have positions
+    assert_eq!(positions.len(), 4);
     assert!(positions.contains_key(&n1));
     assert!(positions.contains_key(&n2));
     assert!(positions.contains_key(&n3));
