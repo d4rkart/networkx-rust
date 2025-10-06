@@ -263,3 +263,133 @@ fn distance_between(pos1: &Position, pos2: &Position) -> f64 {
     let dy = pos1[1] - pos2[1];
     (dx * dx + dy * dy).sqrt()
 }
+
+#[test]
+fn test_spring_layout_with_i32_weights() {
+    let mut graph = Graph::<String, i32>::new(false);
+    let n1 = graph.add_node("node1".to_string());
+    let n2 = graph.add_node("node2".to_string());
+    let n3 = graph.add_node("node3".to_string());
+
+    // Add edges with different weights
+    graph.add_edge(n1, n2, 5); // weight = 5
+    graph.add_edge(n2, n3, 10); // weight = 10
+    graph.add_edge(n3, n1, 1); // weight = 1
+
+    let k = Some(1.0);
+    let scale = 1.0;
+    let center: Position = [0.0, 0.0];
+    let iterations = 50;
+    let threshold = 1e-4;
+
+    // Test without weight parameter (should use default weight of 1.0)
+    let positions_no_weight = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, None);
+
+    // Test with weight parameter
+    let positions_with_weight = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, Some(""));
+
+    // Both should produce valid positions
+    assert_eq!(positions_no_weight.len(), 3);
+    assert_eq!(positions_with_weight.len(), 3);
+
+    for (_node, pos) in &positions_no_weight {
+        assert!(pos[0].is_finite());
+        assert!(pos[1].is_finite());
+    }
+
+    for (_node, pos) in &positions_with_weight {
+        assert!(pos[0].is_finite());
+        assert!(pos[1].is_finite());
+    }
+}
+
+#[test]
+fn test_spring_layout_with_json_weights() {
+    use serde_json::json;
+
+    let mut graph = Graph::<String, String>::new(false);
+    let n1 = graph.add_node("node1".to_string());
+    let n2 = graph.add_node("node2".to_string());
+    let n3 = graph.add_node("node3".to_string());
+
+    // Add edges with JSON string data containing weight fields
+    let weight_data_1 = json!({"weight": 3.5, "cost": 3.5});
+    let weight_data_2 = json!({"cost": 7.2, "other": "data"});
+    let weight_data_3 = json!({"sessionCount": 2.1, "cost": 2.1});
+
+    graph.add_edge(n1, n2, weight_data_1.to_string());
+    graph.add_edge(n2, n3, weight_data_2.to_string());
+    graph.add_edge(n3, n1, weight_data_3.to_string());
+
+    let k = Some(1.0);
+    let scale = 1.0;
+    let center: Position = [0.0, 0.0];
+    let iterations = 50;
+    let threshold = 1e-4;
+
+    // Test with specific weight field
+    let positions = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, Some("cost"));
+
+    // Check that all nodes have positions
+    assert_eq!(positions.len(), 3);
+    assert!(positions.contains_key(&n1));
+    assert!(positions.contains_key(&n2));
+    assert!(positions.contains_key(&n3));
+
+    // Check that positions are within reasonable bounds
+    for (_, pos) in &positions {
+        assert!(pos[0].is_finite());
+        assert!(pos[1].is_finite());
+        assert!(pos[0].abs() <= 2.0);
+        assert!(pos[1].abs() <= 2.0);
+    }
+}
+
+#[test]
+fn test_spring_layout_weight_edge_cases() {
+    let mut graph = Graph::<String, i32>::new(false);
+    let n1 = graph.add_node("node1".to_string());
+    let n2 = graph.add_node("node2".to_string());
+
+    // Test with zero weight
+    graph.add_edge(n1, n2, 0);
+
+    let k = Some(1.0);
+    let scale = 1.0;
+    let center: Position = [0.0, 0.0];
+    let iterations = 50;
+    let threshold = 1e-4;
+
+    // Should handle zero weight gracefully
+    let positions = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, Some(""));
+
+    assert_eq!(positions.len(), 2);
+    for (_, pos) in &positions {
+        assert!(pos[0].is_finite());
+        assert!(pos[1].is_finite());
+    }
+}
+
+#[test]
+fn test_spring_layout_no_weight_parameter() {
+    let mut graph = Graph::<String, i32>::new(false);
+    let n1 = graph.add_node("node1".to_string());
+    let n2 = graph.add_node("node2".to_string());
+
+    graph.add_edge(n1, n2, 5);
+
+    let k = Some(1.0);
+    let scale = 1.0;
+    let center: Position = [0.0, 0.0];
+    let iterations = 50;
+    let threshold = 1e-4;
+
+    // Test that None weight parameter works (uses default weight of 1.0)
+    let positions = spring_layout(&graph, k, None, None, iterations, threshold, scale, center, None);
+
+    assert_eq!(positions.len(), 2);
+    for (_, pos) in &positions {
+        assert!(pos[0].is_finite());
+        assert!(pos[1].is_finite());
+    }
+}

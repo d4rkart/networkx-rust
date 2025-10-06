@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::fmt::Debug;
+use std::any::Any;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use rand::distributions::{Distribution, Uniform};
@@ -242,10 +243,11 @@ pub fn spring_layout<N, E>(
     threshold: f64,
     scale: f64,
     center: Position,
+    weight: Option<&str>,
 ) -> PositionMap
 where
     N: Clone + Debug,
-    E: Clone + Debug,
+    E: Clone + Debug + 'static,
 {
     let n_nodes = graph.node_count();
 
@@ -319,16 +321,45 @@ where
     // Create adjacency matrix
     let mut adj_matrix = vec![vec![0.0; n_nodes]; n_nodes];
 
+    // Use the adjacency map directly for better performance
+    let adjacency_map = graph.adj();
+
     for (u_idx, &node_u) in nodes.iter().enumerate() {
-        let neighbors = graph.neighbors(node_u);
+        // Get the edge data for this node from the graph's adjacency map
+        if let Some(neighbors) = adjacency_map.get(&node_u) {
+            for (&node_v, edge_data) in neighbors {
+                let v_idx = node_indices[&node_v];
 
-        for &node_v in &neighbors {
-            let v_idx = node_indices[&node_v];
+                // Extract the weight from the edge data using the specified weight field
+                let weight = if let Some(weight_field) = weight {
+                    // If a weight field is specified, extract that specific field
+                    if let Some(edge_any) = (edge_data as &dyn Any).downcast_ref::<f64>() {
+                        *edge_any
+                    } else if let Some(edge_any) = (edge_data as &dyn Any).downcast_ref::<i32>() {
+                        *edge_any as f64
+                    } else if let Some(edge_any) = (edge_data as &dyn Any).downcast_ref::<u32>() {
+                        *edge_any as f64
+                    } else if let Some(edge_any) = (edge_data as &dyn Any).downcast_ref::<String>() {
+                        // Try to parse as JSON and extract the specified weight field
+                        if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(edge_any) {
+                            json_val.get(weight_field)
+                                .and_then(|v| v.as_f64())
+                                .unwrap_or(1.0)
+                        } else {
+                            // Try to parse as plain number string
+                            edge_any.parse::<f64>().unwrap_or(1.0)
+                        }
+                    } else {
+                        // Default to 1.0 if we can't extract the specified weight field
+                        1.0
+                    }
+                } else {
+                    // No weight field specified - use default weight of 1.0
+                    1.0
+                };
 
-            // Get edge weight, defaulting to 1.0 if not specified
-            let weight = 1.0;
-
-            adj_matrix[u_idx][v_idx] = weight;
+                adj_matrix[u_idx][v_idx] = weight;
+            }
         }
     }
 
