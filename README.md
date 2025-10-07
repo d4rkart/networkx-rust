@@ -1,4 +1,4 @@
-# Network-rs Library 
+# Network-rs Library
 
 A high-performance Rust implementation of the popular Python [NetworkX](https://github.com/networkx/networkx) library for graph processing and analysis. This library provides a robust, memory-efficient, and thread-safe implementation of graph data structures and algorithms.
 
@@ -56,7 +56,50 @@ let (path, cost) = graph.shortest_path(n1, n2, |&w| w).unwrap();
 
 # Testing
 
-This repository contains examples showcasing the functionality of the NetworkX Rust library, which is a port of the popular Python NetworkX library for graph processing.
+## Running Tests
+
+This library includes comprehensive unit tests and integration tests to ensure correctness and reliability.
+
+### Unit Tests
+
+Run all unit tests:
+```bash
+cargo test
+```
+
+Run tests for a specific module:
+```bash
+cargo test graph_tests
+cargo test layout_tests
+cargo test multigraph_tests
+```
+
+Run a specific test:
+```bash
+cargo test test_spring_layout
+cargo test test_spring_layout_with_json_weights
+```
+
+### Example Files
+
+The repository contains example files demonstrating various features of the NetworkX Rust library:
+
+#### 1. Maze Finder (`maze_finder.rs`)
+Demonstrates how to create a grid-based maze and find the shortest path through it.
+
+#### 2. NetworkX Examples (`networkx_examples.rs`)
+Shows basic graph operations, graph traversals, and shortest path finding.
+
+#### 3. Multi-Graph Example (`multi_graph_example.rs`)
+Demonstrates using MultiGraph and MultiDiGraph for representing transportation networks and network flows.
+
+#### 4. Path Finder (`pathfinder.rs`)
+A more complex example showing how to model a subway network and find optimal routes based on different metrics (distance vs. travel time).
+
+#### 5. Parallel Graph Processing (`parallel_graph.rs`)
+Benchmarks sequential vs. parallel implementations of various graph algorithms.
+
+These example files demonstrate the library's capabilities and can serve as starting points for your own graph processing applications.
 
 ## Features Demonstrated
 
@@ -237,4 +280,4 @@ During testing, we observed the following limitations:
 
 1. The `to_undirected()` method on directed graphs appears to have an issue where edge counts don't match expectations
 2. Some layout functions like `circular_layout` and `spring_layout` have different parameter requirements than documented
-3. Parallel versions of algorithms may have different behavior than their sequential counterparts 
+3. Parallel versions of algorithms may have different behavior than their sequential counterparts
