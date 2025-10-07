@@ -33,7 +33,7 @@ The library is designed for performance with:
 Add to your `Cargo.toml`:
 ```toml
 [dependencies]
-networkx-rs = "0.1.0"
+networkx-rs = "0.1.1"
 ```
 
 Basic usage:
