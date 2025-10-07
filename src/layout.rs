@@ -11,48 +11,61 @@ use crate::graph::{Graph, NodeKey};
 pub trait WeightExtractor {
     /// Extract a weight value from the edge data using the specified field name
     /// Returns None if the weight field is not found or cannot be extracted
-    fn extract_weight(&self, field_name: &str) -> Option<f64>;
+    fn extract_weight(&self, field: &str) -> Option<f64>;
 }
 
-/// Default implementation for f64 - direct value
 impl WeightExtractor for f64 {
-    fn extract_weight(&self, _field_name: &str) -> Option<f64> {
-        Some(*self)
-    }
+    fn extract_weight(&self, _f: &str) -> Option<f64> { Some(*self) }
 }
-
-/// Default implementation for i32 - convert to f64
 impl WeightExtractor for i32 {
-    fn extract_weight(&self, _field_name: &str) -> Option<f64> {
-        Some(*self as f64)
-    }
+    fn extract_weight(&self, _f: &str) -> Option<f64> { Some(*self as f64) }
 }
-
-/// Default implementation for u32 - convert to f64
 impl WeightExtractor for u32 {
-    fn extract_weight(&self, _field_name: &str) -> Option<f64> {
-        Some(*self as f64)
+    fn extract_weight(&self, _f: &str) -> Option<f64> { Some(*self as f64) }
+}
+impl WeightExtractor for f32 {
+    fn extract_weight(&self, _f: &str) -> Option<f64> { Some(*self as f64) }
+}
+impl WeightExtractor for i64 {
+    fn extract_weight(&self, _f: &str) -> Option<f64> { Some(*self as f64) }
+}
+impl WeightExtractor for u64 {
+    fn extract_weight(&self, _f: &str) -> Option<f64> { Some(*self as f64) }
+}
+
+/// Implementation for &str - try JSON parsing or direct number parsing
+impl WeightExtractor for &str {
+    fn extract_weight(&self, field: &str) -> Option<f64> {
+        // try JSON then plain number
+        serde_json::from_str::<serde_json::Value>(self).ok()
+            .and_then(|v| v.get(field).and_then(|x| x.as_f64()))
+            .or_else(|| self.parse::<f64>().ok().map(|x| x as f64))
     }
 }
 
-/// Implementation for String - try JSON parsing or direct number parsing
-impl WeightExtractor for String {
-    fn extract_weight(&self, field_name: &str) -> Option<f64> {
-        // Try to parse as JSON and extract the specified field
-        if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(self) {
-            json_val.get(field_name)
-                .and_then(|v| v.as_f64())
-        } else {
-            // Try to parse as plain number string
-            self.parse::<f64>().ok()
-        }
+/// Implementation for serde_json::Value - extract weight from JSON
+impl WeightExtractor for serde_json::Value {
+    fn extract_weight(&self, field: &str) -> Option<f64> {
+        self.get(field).and_then(|v| v.as_f64())
     }
 }
 
 /// Implementation for unit type () - no weight
 impl WeightExtractor for () {
-    fn extract_weight(&self, _field_name: &str) -> Option<f64> {
-        None
+    fn extract_weight(&self, _f: &str) -> Option<f64> { None }
+}
+
+/// Implementation for String - try JSON parsing or direct number parsing
+impl WeightExtractor for String {
+    fn extract_weight(&self, field: &str) -> Option<f64> {
+        // Try to parse as JSON and extract the specified field
+        if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(self) {
+            json_val.get(field)
+                .and_then(|v| v.as_f64())
+        } else {
+            // Try to parse as plain number string
+            self.parse::<f64>().ok()
+        }
     }
 }
 
@@ -295,7 +308,7 @@ pub fn spring_layout<N, E>(
 ) -> PositionMap
 where
     N: Clone + Debug,
-    E: Clone + Debug + 'static + WeightExtractor,
+    E: Clone + Debug + WeightExtractor,
 {
     let n_nodes = graph.node_count();
 
@@ -379,12 +392,11 @@ where
                 let v_idx = node_indices[&node_v];
 
                 // Extract the weight from the edge data using the specified weight field
-                let weight = if let Some(weight_field) = weight {
+                let weight = match weight {
                     // Use the trait-based approach for type-safe weight extraction
-                    edge_data.extract_weight(weight_field).unwrap_or(1.0)
-                } else {
+                    Some(field) => edge_data.extract_weight(field).unwrap_or(1.0),
                     // No weight field specified - use default weight of 1.0
-                    1.0
+                    None => edge_data.extract_weight("").unwrap_or(1.0),
                 };
 
                 adj_matrix[u_idx][v_idx] = weight;
