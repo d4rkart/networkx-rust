@@ -363,7 +363,15 @@ where
     N: Clone + Debug,
     E: Clone + Debug + WeightExtractor,
 {
-    let dim = if dim == 0 || dim == 1 { 2 } else { dim };
+    let (dim, mut center) = if dim == 0 || dim == 1 { 
+        (2, {
+            let mut c = center;
+            c.resize(2, 0.0);
+            c
+        })
+    } else { 
+        (dim, center) 
+    };
     if center.len() != dim {
         panic!("spring_layout: center length ({}) must equal dim ({})", center.len(), dim);
     }
@@ -566,7 +574,7 @@ where
             let mut length_sq = 0.0;
             for d in 0..dim { length_sq += disp[i][d] * disp[i][d]; }
             let mut length = length_sq.sqrt();
-            if length < 0.01 { length = 0.1; }
+            if length < 0.01 { length = 0.01; }
 
             // Compute delta_pos
             let mut delta_vec = vec![0.0; dim];
@@ -602,7 +610,7 @@ where
     for (i, &node) in nodes.iter().enumerate() {
         // Project N-D to 2D for return type compatibility
         let x = pos_array[i][0];
-        let y = pos_array[i][1] ;
+        let y = pos_array[i][1];
         positions.insert(node, [x, y]);
     }
 
