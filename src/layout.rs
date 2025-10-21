@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 use rand::Rng;
-use rand::rngs::ThreadRng;
+use rand::rngs::{ThreadRng, StdRng};
+use rand::SeedableRng;
 use rand::distributions::{Distribution, Uniform};
 
 use crate::graph::{Graph, NodeKey};
@@ -71,6 +72,51 @@ impl WeightExtractor for String {
 
 pub type Position = [f64; 2];
 pub type PositionMap = HashMap<NodeKey, Position>;
+
+/// Rescale layout positions to (-scale, scale) in all dimensions.
+///
+/// To rescale, the mean (center) is subtracted from each axis separately.
+/// Then all values are scaled so that the largest magnitude value
+/// from all axes equals `scale` (thus, the aspect ratio is preserved).
+fn rescale_layout(pos_array: &mut Vec<Vec<f64>>, scale: f64, center: &Vec<f64>) {
+    let n_nodes = pos_array.len();
+    let dim = if n_nodes > 0 { pos_array[0].len() } else { 0 };
+
+    if n_nodes == 0 || dim == 0 {
+        return;
+    }
+
+    // Compute mean per dimension
+    let mut means = vec![0.0; dim];
+    for p in &*pos_array { for d in 0..dim { means[d] += p[d]; } }
+    for d in 0..dim { means[d] /= n_nodes as f64; }
+
+    // Subtract mean and find global max abs across all dims
+    let mut lim: f64 = 0.0;
+    for i in 0..n_nodes {
+        for d in 0..dim {
+            pos_array[i][d] -= means[d];
+            lim = lim.max(pos_array[i][d].abs());
+        }
+    }
+
+    // Scale to (-scale, scale) and add center per dimension
+    if lim > 0.0 {
+        let factor = scale / lim;
+        for i in 0..n_nodes {
+            for d in 0..dim {
+                pos_array[i][d] = pos_array[i][d] * factor + *center.get(d).unwrap_or(&0.0);
+            }
+        }
+    } else {
+        // If lim == 0, collapse at center
+        for i in 0..n_nodes {
+            for d in 0..dim {
+                pos_array[i][d] = *center.get(d).unwrap_or(&0.0);
+            }
+        }
+    }
+}
 
 /// Position nodes on concentric circles.
 ///
@@ -290,6 +336,11 @@ where
 ///     Scale factor for positions
 /// center : Position (default = [0.0, 0.0])
 ///     Center position for the layout
+/// dim : usize (default = 2)
+///     Dimension of layout.
+/// seed : Option<u64>
+///     Used only for the initial positions in the algorithm.
+///     Set the random state for deterministic node layouts
 ///
 /// Returns
 /// -------
@@ -303,13 +354,27 @@ pub fn spring_layout<N, E>(
     iterations: usize,
     threshold: f64,
     scale: f64,
-    center: Position,
+    center: Vec<f64>,
     weight: Option<&str>,
+    dim: usize,
+    seed: Option<u64>,
 ) -> PositionMap
 where
     N: Clone + Debug,
     E: Clone + Debug + WeightExtractor,
 {
+    let (dim, center) = if dim == 0 || dim == 1 {
+        (2, {
+            let mut c = center;
+            c.resize(2, 0.0);
+            c
+        })
+    } else {
+        (dim, center)
+    };
+    if center.len() != dim {
+        panic!("spring_layout: center length ({}) must equal dim ({})", center.len(), dim);
+    }
     let n_nodes = graph.node_count();
 
     if n_nodes == 0 {
@@ -319,7 +384,9 @@ where
     if n_nodes == 1 {
         let mut positions = HashMap::new();
         let node = graph.nodes()[0];
-        positions.insert(node, center);
+        let cx = *center.get(0).unwrap_or(&0.0);
+        let cy = *center.get(1).unwrap_or(&0.0);
+        positions.insert(node, [cx, cy]);
         return positions;
     }
 
@@ -331,39 +398,54 @@ where
         .collect();
 
     // Set up positions
-    let mut rng = rand::thread_rng();
-    let mut pos_array = Vec::with_capacity(n_nodes);
+    let mut rng: StdRng = match seed {
+        Some(s) => StdRng::seed_from_u64(s),
+        None => StdRng::from_entropy(),
+    };
+    let mut pos_array: Vec<Vec<f64>> = Vec::with_capacity(n_nodes);
 
     if let Some(p) = pos {
-        // Use provided positions if available
-        let mut max_coord: f64 = 0.0;
+        let mut dom_size: f64 = 0.0; // Max coord over all dims and positions
+        for (&_node, coords) in p.iter() {
+            for d in 0..dim {
+                if d < coords.len() {
+                    dom_size = dom_size.max(coords[d].abs());
+                }
+            }
+        }
+        if dom_size == 0.0 { dom_size = 1.0; }
 
-        for &node in &nodes {
-            let node_pos = if let Some(pos) = p.get(&node) {
-                *pos
-            } else {
-                let x = (rng.gen::<f64>() - 0.5) * 2.0;
-                let y = (rng.gen::<f64>() - 0.5) * 2.0;
-                [x, y]
-            };
-
-            max_coord = max_coord.max(node_pos[0].abs()).max(node_pos[1].abs());
-            pos_array.push(node_pos);
+        // Random initial positions scaled by dom_size, then add center
+        for _ in 0..n_nodes {
+            let mut coords = vec![0.0; dim];
+            for d in 0..dim {
+                coords[d] = rng.gen::<f64>() * dom_size;
+                let c = *center.get(d).unwrap_or(&0.0);
+                coords[d] += c;
+            }
+            pos_array.push(coords);
         }
 
-        // Normalize to a domain size of 1.0
-        if max_coord > 0.0 {
-            for pos in &mut pos_array {
-                pos[0] /= max_coord;
-                pos[1] /= max_coord;
+        // Overwrite with provided positions
+        for (i, &node) in nodes.iter().enumerate() {
+            if let Some(provided_coords) = p.get(&node) {
+                for d in 0..dim {
+                    if d < provided_coords.len() {
+                        pos_array[i][d] = provided_coords[d];
+                    }
+                }
             }
         }
     } else {
         // Generate random positions
         for _ in 0..n_nodes {
-            let x = (rng.gen::<f64>() - 0.5) * 2.0;
-            let y = (rng.gen::<f64>() - 0.5) * 2.0;
-            pos_array.push([x, y]);
+            let mut coords = vec![0.0; dim];
+            for d in 0..dim {
+                coords[d] = rng.gen::<f64>();
+                let c = *center.get(d).unwrap_or(&0.0);
+                coords[d] += c;
+            }
+            pos_array.push(coords);
         }
     }
 
@@ -406,23 +488,26 @@ where
 
     // Calculate the initial temperature
     // This is about 0.1 of the domain area (1.0 x 1.0)
-    let pos_x: Vec<f64> = pos_array.iter().map(|p| p[0]).collect();
-    let pos_y: Vec<f64> = pos_array.iter().map(|p| p[1]).collect();
-    let max_x = pos_x.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    let min_x = pos_x.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-    let max_y = pos_y.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    let min_y = pos_y.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-
-    let width = max_x - min_x;
-    let height = max_y - min_y;
-
-    let mut t = width.max(height) * 0.1;
+    let mut max_spread = 0.0;
+    for d in 0..dim {
+        let mut min_d = f64::INFINITY;
+        let mut max_d = f64::NEG_INFINITY;
+        for p in &pos_array {
+            if d < p.len() {
+                min_d = min_d.min(p[d]);
+                max_d = max_d.max(p[d]);
+            }
+        }
+        let spread_d = max_d - min_d;
+        max_spread = f64::max(max_spread, spread_d);
+    }
+    let mut t = max_spread * 0.1;
     let dt = t / (iterations as f64 + 1.0);
 
     // Run the main loop
     for _ in 0..iterations {
         // Calculate displacement forces
-        let mut disp = vec![[0.0, 0.0]; n_nodes];
+        let mut disp: Vec<Vec<f64>> = vec![vec![0.0; dim]; n_nodes];
 
         // Calculate repulsive forces
         for i in 0..n_nodes {
@@ -432,23 +517,24 @@ where
                 }
 
                 // Difference vector
-                let dx = pos_array[i][0] - pos_array[j][0];
-                let dy = pos_array[i][1] - pos_array[j][1];
-
-                // Distance between nodes
-                let mut distance = (dx * dx + dy * dy).sqrt();
+                let mut distance_sq = 0.0;
+                let mut dn = vec![0.0; dim];
+                for d in 0..dim {
+                    let diff = pos_array[i][d] - pos_array[j][d];
+                    dn[d] = diff;
+                    distance_sq += diff * diff;
+                }
+                let mut distance = distance_sq.sqrt();
                 if distance < 0.01 {
                     distance = 0.01;
                 }
-
-                // Normalized difference vector
-                let dn = [dx / distance, dy / distance];
+                // Normalize difference vector
+                for d in 0..dim { dn[d] /= distance; }
 
                 // Repulsive force: k² / d
-                let force = k_val * k_val / distance;
+                let force = (k_val * k_val) / distance;
 
-                disp[i][0] += dn[0] * force;
-                disp[i][1] += dn[1] * force;
+                for d in 0..dim { disp[i][d] += dn[d] * force; }
             }
         }
 
@@ -460,97 +546,72 @@ where
                 }
 
                 // Difference vector
-                let dx = pos_array[i][0] - pos_array[j][0];
-                let dy = pos_array[i][1] - pos_array[j][1];
-
-                // Distance between nodes
-                let mut distance = (dx * dx + dy * dy).sqrt();
+                let mut distance_sq = 0.0;
+                let mut dn = vec![0.0; dim];
+                for d in 0..dim {
+                    let diff = pos_array[i][d] - pos_array[j][d];
+                    dn[d] = diff;
+                    distance_sq += diff * diff;
+                }
+                let mut distance = distance_sq.sqrt();
                 if distance < 0.01 {
                     distance = 0.01;
                 }
 
                 // Normalized difference vector
-                let dn = [dx / distance, dy / distance];
+                for d in 0..dim { dn[d] /= distance; }
 
                 // Attractive force: d² / k * weight
                 let force = distance * distance / k_val * adj_matrix[i][j];
 
-                disp[i][0] -= dn[0] * force;
-                disp[i][1] -= dn[1] * force;
+                for d in 0..dim { disp[i][d] -= dn[d] * force; }
             }
         }
 
-        // Limit displacement by temperature and update positions
-        let mut total_displacement = 0.0;
-
+        let mut sum_delta_sq = 0.0;
         for i in 0..n_nodes {
-            // Skip fixed nodes
+            // Compute displacement length
+            let mut length_sq = 0.0;
+            for d in 0..dim { length_sq += disp[i][d] * disp[i][d]; }
+            let mut length = length_sq.sqrt();
+            if length < 0.01 { length = 0.01; }
+
+            // Compute delta_pos
+            let mut delta_vec = vec![0.0; dim];
+            for d in 0..dim { delta_vec[d] = disp[i][d] * (t / length); }
+
+            // Zero out fixed nodes movement
             if fixed_nodes.contains(&i) {
-                continue;
+                for d in 0..dim { delta_vec[d] = 0.0; }
             }
 
-            // Calculate displacement
-            let disp_length = (disp[i][0] * disp[i][0] + disp[i][1] * disp[i][1]).sqrt();
-
-            // Limit displacement by temperature
-            let factor = if disp_length > 0.0 {
-                t.min(disp_length) / disp_length
-            } else {
-                0.0
-            };
-
-            // Update position
-            let dx = disp[i][0] * factor;
-            let dy = disp[i][1] * factor;
-
-            pos_array[i][0] += dx;
-            pos_array[i][1] += dy;
-
-            total_displacement += (dx * dx + dy * dy).sqrt();
+            for d in 0..dim {
+                pos_array[i][d] += delta_vec[d];
+                sum_delta_sq += delta_vec[d] * delta_vec[d];
+            }
         }
 
         // Cool the temperature
         t -= dt;
 
         // Check for convergence
-        if (total_displacement / n_nodes as f64) < threshold {
+        if (sum_delta_sq.sqrt() / n_nodes as f64) < threshold {
             break;
         }
     }
 
     // Rescale and center the layout
-    let mut min_x = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-
-    for pos in &pos_array {
-        min_x = min_x.min(pos[0]);
-        max_x = max_x.max(pos[0]);
-        min_y = min_y.min(pos[1]);
-        max_y = max_y.max(pos[1]);
-    }
-
-    let width = max_x - min_x;
-    let height = max_y - min_y;
-
-    let size = width.max(height);
-    if size > 0.0 {
-        for pos in &mut pos_array {
-            // Rescale to [0, 1]
-            pos[0] = (pos[0] - min_x) / size;
-            pos[1] = (pos[1] - min_y) / size;
-
-            // Adjust scale and center
-            pos[0] = center[0] + (pos[0] - 0.5) * scale * 2.0;
-            pos[1] = center[1] + (pos[1] - 0.5) * scale * 2.0;
-        }
+    if fixed.is_none() && scale != 0.0 {
+        rescale_layout(&mut pos_array, scale, &center);
     }
 
     // Create the final position map
     let mut positions = HashMap::with_capacity(n_nodes);
     for (i, &node) in nodes.iter().enumerate() {
-        positions.insert(node, pos_array[i]);
+        // Project N-D to 2D for return type compatibility
+        let x = pos_array[i][0];
+        let y = pos_array[i][1];
+        positions.insert(node, [x, y]);
     }
 
     positions
