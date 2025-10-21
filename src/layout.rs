@@ -74,14 +74,14 @@ pub type Position = [f64; 2];
 pub type PositionMap = HashMap<NodeKey, Position>;
 
 /// Rescale layout positions to (-scale, scale) in all dimensions.
-/// 
+///
 /// To rescale, the mean (center) is subtracted from each axis separately.
 /// Then all values are scaled so that the largest magnitude value
 /// from all axes equals `scale` (thus, the aspect ratio is preserved).
 fn rescale_layout(pos_array: &mut Vec<Vec<f64>>, scale: f64, center: &Vec<f64>) {
     let n_nodes = pos_array.len();
     let dim = if n_nodes > 0 { pos_array[0].len() } else { 0 };
-    
+
     if n_nodes == 0 || dim == 0 {
         return;
     }
@@ -110,10 +110,10 @@ fn rescale_layout(pos_array: &mut Vec<Vec<f64>>, scale: f64, center: &Vec<f64>) 
         }
     } else {
         // If lim == 0, collapse at center
-        for i in 0..n_nodes { 
-            for d in 0..dim { 
-                pos_array[i][d] = *center.get(d).unwrap_or(&0.0); 
-            } 
+        for i in 0..n_nodes {
+            for d in 0..dim {
+                pos_array[i][d] = *center.get(d).unwrap_or(&0.0);
+            }
         }
     }
 }
@@ -363,14 +363,14 @@ where
     N: Clone + Debug,
     E: Clone + Debug + WeightExtractor,
 {
-    let (dim, mut center) = if dim == 0 || dim == 1 { 
+    let (dim, center) = if dim == 0 || dim == 1 {
         (2, {
             let mut c = center;
             c.resize(2, 0.0);
             c
         })
-    } else { 
-        (dim, center) 
+    } else {
+        (dim, center)
     };
     if center.len() != dim {
         panic!("spring_layout: center length ({}) must equal dim ({})", center.len(), dim);
